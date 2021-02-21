@@ -1,0 +1,15 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-datastoremysqltodo-dev-103238-authRole",
+      "UnauthRoleArn": "arn:aws:iam::714090130982:role/amplify-datastoremysqltodo-dev-103238-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::714090130982:role/amplify-datastoremysqltodo-dev-103238-authRole",
+      "Region": "us-east-2",
+      "DeploymentBucketName": "amplify-datastoremysqltodo-dev-103238-deployment",
+      "UnauthRoleName": "amplify-datastoremysqltodo-dev-103238-unauthRole",
+      "StackName": "amplify-datastoremysqltodo-dev-103238",
+      "StackId": "arn:aws:cloudformation:us-east-2:714090130982:stack/amplify-datastoremysqltodo-dev-103238/6b4345c0-7462-11eb-9756-02041604b166",
+      "AmplifyAppId": "d3cl01myvai09g"
+    }
+  }
+}
