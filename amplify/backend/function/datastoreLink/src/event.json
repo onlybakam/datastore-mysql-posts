@@ -1,0 +1,37 @@
+{
+  "typeName": "Query",
+  "fieldName": "syncPosts",
+  "arguments": {},
+  "identity": null,
+  "source": null,
+  "request": {
+    "headers": {
+      "x-forwarded-for": "97.99.78.214, 130.176.65.137",
+      "accept-encoding": "gzip, deflate, br",
+      "cloudfront-viewer-country": "US",
+      "cloudfront-is-tablet-viewer": "false",
+      "referer": "https://us-east-2.console.aws.amazon.com/appsync/home?region=us-east-2",
+      "via": "2.0 45a98fddf73288008a2a56b54eb03501.cloudfront.net (CloudFront)",
+      "cloudfront-forwarded-proto": "https",
+      "origin": "https://us-east-2.console.aws.amazon.com",
+      "x-api-key": "da2-jjxrhdq4gvdunklgmp52fs5zly",
+      "content-type": "application/json",
+      "x-amzn-trace-id": "Root=1-604e3b62-2d42d780082604937ed5a1fb",
+      "x-amz-cf-id": "gTsIHZMaNggWqSQ2ukr1WdmthyqVzfx37Q2MwajuAGimgsb7XA1Glg==",
+      "content-length": "244",
+      "x-amz-user-agent": "AWS-Console-AppSync/",
+      "x-forwarded-proto": "https",
+      "host": "2sd5cjuyzrge7auqxwvyjeacyy.appsync-api.us-east-2.amazonaws.com",
+      "accept-language": "en-US,en;q=0.5",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:78.0) Gecko/20100101 Firefox/78.0",
+      "cloudfront-is-desktop-viewer": "true",
+      "cloudfront-is-mobile-viewer": "false",
+      "accept": "*/*",
+      "x-forwarded-port": "443",
+      "cloudfront-is-smarttv-viewer": "false"
+    }
+  },
+  "prev": {
+    "result": {}
+  }
+}

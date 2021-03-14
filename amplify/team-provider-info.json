@@ -10,6 +10,50 @@
       "StackName": "amplify-datastoremysqltodo-dev-103238",
       "StackId": "arn:aws:cloudformation:us-east-2:714090130982:stack/amplify-datastoremysqltodo-dev-103238/6b4345c0-7462-11eb-9756-02041604b166",
       "AmplifyAppId": "d3cl01myvai09g"
+    },
+    "categories": {
+      "function": {
+        "mysql": {
+          "deploymentBucketName": "amplify-datastoremysqltodo-dev-103238-deployment",
+          "s3Key": "amplify-builds/mysql-build.zip"
+        },
+        "datastoreLink": {
+          "deploymentBucketName": "amplify-datastoremysqltodo-dev-103238-deployment",
+          "s3Key": "amplify-builds/datastoreLink-68566a55454647774347-build.zip"
+        }
+      }
+    },
+    "nonCFNdata": {
+      "function": {
+        "mysql": {
+          "layerVersionMap": {
+            "1": {
+              "permissions": [
+                {
+                  "type": "private"
+                }
+              ],
+              "hash": "+hRnYOlDm7u95tTSrlfKK+kBwurJVKHUp4gflfLFjoo="
+            },
+            "2": {
+              "permissions": [
+                {
+                  "type": "private"
+                }
+              ],
+              "hash": "8sFdCpDp5YWMJfalcAsEeYls0OZKhMxqB4v5OlLReGI="
+            },
+            "3": {
+              "permissions": [
+                {
+                  "type": "private"
+                }
+              ],
+              "hash": "L/wvdf3K94CYI5Rd8Ip6U5KyVorsAwo1wX/7Te2/FuQ="
+            }
+          }
+        }
+      }
     }
   }
 }

@@ -16,5 +16,26 @@
         }
       }
     }
+  },
+  "function": {
+    "mysql": {
+      "providerPlugin": "awscloudformation",
+      "service": "LambdaLayer",
+      "build": true
+    },
+    "datastoreLink": {
+      "build": true,
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda",
+      "dependsOn": [
+        {
+          "category": "function",
+          "resourceName": "mysql",
+          "attributes": [
+            "Arn"
+          ]
+        }
+      ]
+    }
   }
 }

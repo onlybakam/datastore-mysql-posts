@@ -8,6 +8,8 @@ type Post {
     limit: Int
     nextToken: String
   ): ModelCommentConnection
+
+  mysql_id: Int!
   _version: Int!
   _deleted: Boolean
   _lastChangedAt: AWSTimestamp!
@@ -20,6 +22,8 @@ type Comment {
   postID: ID!
   post: Post
   content: String!
+
+  mysql_id: Int!
   _version: Int!
   _deleted: Boolean
   _lastChangedAt: AWSTimestamp!
@@ -133,13 +137,13 @@ type Query {
     limit: Int
     nextToken: String
     lastSync: AWSTimestamp
-  ): ModelPostConnection
+  ): ModelPostConnection @function(name: "datastoreLink-${env}")
   syncComments(
     filter: ModelCommentFilterInput
     limit: Int
     nextToken: String
     lastSync: AWSTimestamp
-  ): ModelCommentConnection
+  ): ModelCommentConnection @function(name: "datastoreLink-${env}")
 }
 
 input CreatePostInput {
@@ -161,20 +165,23 @@ input DeletePostInput {
 
 type Mutation {
   createPost(input: CreatePostInput!, condition: ModelPostConditionInput): Post
+    @function(name: "datastoreLink-${env}")
   updatePost(input: UpdatePostInput!, condition: ModelPostConditionInput): Post
+    @function(name: "datastoreLink-${env}")
   deletePost(input: DeletePostInput!, condition: ModelPostConditionInput): Post
+    @function(name: "datastoreLink-${env}")
   createComment(
     input: CreateCommentInput!
     condition: ModelCommentConditionInput
-  ): Comment
+  ): Comment @function(name: "datastoreLink-${env}")
   updateComment(
     input: UpdateCommentInput!
     condition: ModelCommentConditionInput
-  ): Comment
+  ): Comment @function(name: "datastoreLink-${env}")
   deleteComment(
     input: DeleteCommentInput!
     condition: ModelCommentConditionInput
-  ): Comment
+  ): Comment @function(name: "datastoreLink-${env}")
 }
 
 input ModelPostConditionInput {
