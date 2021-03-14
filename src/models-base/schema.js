@@ -21,7 +21,7 @@ export const schema = {
                     "name": "mysql_id",
                     "isArray": false,
                     "type": "Int",
-                    "isRequired": false,
+                    "isRequired": true,
                     "attributes": []
                 },
                 "comments": {
@@ -62,7 +62,7 @@ export const schema = {
                     "name": "mysql_id",
                     "isArray": false,
                     "type": "Int",
-                    "isRequired": false,
+                    "isRequired": true,
                     "attributes": []
                 },
                 "content": {
@@ -107,5 +107,5 @@ export const schema = {
     },
     "enums": {},
     "nonModels": {},
-    "version": "6dc2646f040ed6d9abf09cf364ecdb6a"
+    "version": "1516a2f173ae7a94124c9059e3d9cce1"
 };
