@@ -21,7 +21,7 @@ export const schema = {
                     "name": "mysql_id",
                     "isArray": false,
                     "type": "Int",
-                    "isRequired": true,
+                    "isRequired": false,
                     "attributes": []
                 },
                 "comments": {
@@ -44,7 +44,9 @@ export const schema = {
             "attributes": [
                 {
                     "type": "model",
-                    "properties": {}
+                    "properties": {
+                        "queries": {}
+                    }
                 }
             ]
         },
@@ -62,14 +64,7 @@ export const schema = {
                     "name": "mysql_id",
                     "isArray": false,
                     "type": "Int",
-                    "isRequired": true,
-                    "attributes": []
-                },
-                "content": {
-                    "name": "content",
-                    "isArray": false,
-                    "type": "String",
-                    "isRequired": true,
+                    "isRequired": false,
                     "attributes": []
                 },
                 "post": {
@@ -84,6 +79,13 @@ export const schema = {
                         "connectionType": "BELONGS_TO",
                         "targetName": "postID"
                     }
+                },
+                "content": {
+                    "name": "content",
+                    "isArray": false,
+                    "type": "String",
+                    "isRequired": true,
+                    "attributes": []
                 }
             },
             "syncable": true,
@@ -91,7 +93,9 @@ export const schema = {
             "attributes": [
                 {
                     "type": "model",
-                    "properties": {}
+                    "properties": {
+                        "queries": {}
+                    }
                 },
                 {
                     "type": "key",
@@ -107,5 +111,5 @@ export const schema = {
     },
     "enums": {},
     "nonModels": {},
-    "version": "1516a2f173ae7a94124c9059e3d9cce1"
+    "version": "6dc2646f040ed6d9abf09cf364ecdb6a"
 };

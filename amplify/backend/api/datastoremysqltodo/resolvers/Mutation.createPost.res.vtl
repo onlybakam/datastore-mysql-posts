@@ -1,0 +1,6 @@
+#if($context.prev.result && $context.prev.result.errorMessage )
+    $utils.error($context.prev.result.errorMessage, $context.prev.result.errorType,
+    $context.prev.result.data)
+#else
+    $utils.toJson($context.prev.result.data)
+#end

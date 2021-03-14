@@ -19,7 +19,7 @@
         },
         "datastoreLink": {
           "deploymentBucketName": "amplify-datastoremysqltodo-dev-103238-deployment",
-          "s3Key": "amplify-builds/datastoreLink-68566a55454647774347-build.zip"
+          "s3Key": "amplify-builds/datastoreLink-59466e73397464425a42-build.zip"
         }
       }
     },

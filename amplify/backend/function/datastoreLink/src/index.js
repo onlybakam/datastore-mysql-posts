@@ -22,11 +22,9 @@ const operations = {
   createPost: { fn: _create, table: 'Posts' },
   createComment: { fn: _create, table: 'Comments' },
   updatePost: { fn: _update, table: 'Posts' },
-  // updatePostPost,
-  // deletePost,
-  // createComment,
-  // updateComment,
-  // deleteComment,
+  updateComment: { fn: _update, table: 'Comments' },
+  deletePost: { fn: _delete, table: 'Posts' },
+  deleteComment: { fn: _delete, table: 'Comments' },
 }
 
 const init = async () => {
@@ -153,7 +151,7 @@ async function _create({
   const [[row]] = await connection.query(sql, values)
   console.log(`row >`, JSON.stringify(row, null, 2))
 
-  return clean(row)
+  return { data: clean(row) }
 }
 
 async function _update({ args: { input }, table, connection }) {
@@ -175,6 +173,7 @@ async function _update({ args: { input }, table, connection }) {
   }
 
   if (_version < item._version) {
+    console.log('version mismatch on item')
     return {
       data: clean(item),
       errorMessage: 'Conflict',
@@ -182,14 +181,17 @@ async function _update({ args: { input }, table, connection }) {
     }
   }
 
-  Object.assign(item, rest)
-  item._version++
-
-  const keys = Object.keys(item)
+  rest._version = item._version + 1
+  const keys = Object.keys(rest)
 
   sql =
-    'UPDATE `' + table + '` SET ' + `${keys.map((k) => k + ' = ?').join(', ')}`
-  values = keys.map((k) => item[k])
+    'UPDATE `' +
+    table +
+    '` SET ' +
+    `${keys.map((k) => k + ' = ?').join(', ')} ` +
+    'WHERE `id` = ?'
+  values = keys.map((k) => rest[k])
+  values.push(id)
 
   console.log(`execute sql >`, JSON.stringify(sql, null, 2))
   console.log(`with values >`, JSON.stringify(values, null, 2))
@@ -198,7 +200,7 @@ async function _update({ args: { input }, table, connection }) {
   console.log(`result >`, JSON.stringify(result, null, 2))
 
   sql = 'SELECT * FROM `' + table + '` WHERE `id` = ?'
-  values = [result.insertId]
+  values = [id]
 
   console.log(`execute sql >`, JSON.stringify(sql, null, 2))
   console.log(`with values >`, JSON.stringify(values, null, 2))
@@ -206,29 +208,62 @@ async function _update({ args: { input }, table, connection }) {
   const [[row]] = await connection.query(sql, values)
   console.log(`row >`, JSON.stringify(row, null, 2))
 
-  return clean(row)
+  return { data: clean(row) }
 }
 
-function _delete(records = [], { input }) {
-  const { id, _version = 0 } = input
+async function _delete({ args: { input }, table, connection }) {
+  const { id: uuid, _version } = input
+  let sql = 'SELECT * FROM `' + table + '` WHERE `datastore_uuid` = ?'
+  let values = [uuid]
 
-  const item = records.find((p) => p.id === id)
+  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
+  console.log(`with values >`, JSON.stringify(values, null, 2))
+  const [[item]] = await connection.query(sql, values)
 
-  if (item) {
-    if (_version < item._version) {
-      return {
-        data: item,
-        errorMessage: 'Conflict',
-        errorType: 'ConflictUnhandled',
-      }
+  console.log(`retrieved item >`, JSON.stringify(item, null, 2))
+
+  if (!item) {
+    return {
+      data: null,
     }
-
-    item._deleted = true
-    item._version++
-    item._lastChangedAt = Date.now()
   }
 
-  return {
-    data: item,
+  if (_version < item._version) {
+    console.log('version mismatch on item')
+    return {
+      data: clean(item),
+      errorMessage: 'Conflict',
+      errorType: 'ConflictUnhandled',
+    }
   }
+
+  const id = item.id
+  const rest = { _version: item._version + 1, _deleted: true }
+  const keys = Object.keys(rest)
+
+  sql =
+    'UPDATE `' +
+    table +
+    '` SET ' +
+    `${keys.map((k) => k + ' = ?').join(', ')} ` +
+    'WHERE `id` = ?'
+  values = keys.map((k) => rest[k])
+  values.push(id)
+
+  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
+  console.log(`with values >`, JSON.stringify(values, null, 2))
+
+  const [result] = await connection.query(sql, values)
+  console.log(`result >`, JSON.stringify(result, null, 2))
+
+  sql = 'SELECT * FROM `' + table + '` WHERE `id` = ?'
+  values = [id]
+
+  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
+  console.log(`with values >`, JSON.stringify(values, null, 2))
+
+  const [[row]] = await connection.query(sql, values)
+  console.log(`row >`, JSON.stringify(row, null, 2))
+
+  return { data: clean(row) }
 }

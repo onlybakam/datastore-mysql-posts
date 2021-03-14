@@ -84,7 +84,7 @@ export const schema = {
                     "name": "mysql_id",
                     "isArray": false,
                     "type": "Int",
-                    "isRequired": true,
+                    "isRequired": false,
                     "attributes": []
                 },
                 "_version": {
@@ -190,7 +190,7 @@ export const schema = {
                     "name": "mysql_id",
                     "isArray": false,
                     "type": "Int",
-                    "isRequired": true,
+                    "isRequired": false,
                     "attributes": []
                 },
                 "_version": {
@@ -231,5 +231,5 @@ export const schema = {
             }
         }
     },
-    "version": "6cd5520721394a6736effa4e9aa66469"
+    "version": "5dc400c5669987833af9231e05532e70"
 };

@@ -29,7 +29,7 @@ export declare class Post {
   readonly id: string;
   readonly title: string;
   readonly comments?: ModelCommentConnection;
-  readonly mysql_id: number;
+  readonly mysql_id?: number;
   readonly _version: number;
   readonly _deleted?: boolean;
   readonly _lastChangedAt: number;
@@ -50,7 +50,7 @@ export declare class Comment {
   readonly postID: string;
   readonly post?: Post;
   readonly content: string;
-  readonly mysql_id: number;
+  readonly mysql_id?: number;
   readonly _version: number;
   readonly _deleted?: boolean;
   readonly _lastChangedAt: number;
