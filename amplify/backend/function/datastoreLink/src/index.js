@@ -3,7 +3,7 @@ const mysql = require('mysql2/promise')
 
 const {
   util: {
-    uuid: { v4: uuid },
+    uuid: { v4: uuidv4 },
   },
 } = AWS
 
@@ -44,11 +44,12 @@ const init = async () => {
   return await mysql.createConnection(connectionConfig)
 }
 
+const q = (str) => '`' + str + '`'
+
 exports.handler = async (event) => {
   console.log(`passed event >`, JSON.stringify(event, null, 2))
 
   const { fieldName: operation, arguments: args } = event
-  console.log(`received operation >`, JSON.stringify(operation, null, 2))
 
   const connection = await init()
 
@@ -71,11 +72,11 @@ const clean = (row) => {
   }
 }
 
-async function _query({
+const _query = async ({
   args: { limit = 100, lastSync, nextToken: inNextToken },
   table,
   connection,
-}) {
+}) => {
   const startedAt = Date.now()
   const moment = startedAt - DeltaSyncConfig.DeltaSyncTableTTL * MIN_TO_MILLI
   let sql
@@ -87,10 +88,9 @@ async function _query({
   }
 
   if (lastSync === undefined) {
-    sql =
-      'SELECT * FROM `' +
-      table +
-      '` WHERE `_deleted` = ? ORDER BY `id` LIMIT ?, ?'
+    sql = `SELECT * FROM ${q(table)} WHERE ${q('_deleted')} = ? ORDER BY ${q(
+      'id'
+    )} LIMIT ?, ?`
     values = [false, offset, limit]
   } else if (lastSync < moment) {
     sql =
@@ -99,7 +99,12 @@ async function _query({
       '` WHERE `_deleted` = ? AND _lastChangedAt > FROM_UNIXTIME(?/1000) ORDER BY `id` LIMIT ?, ?'
     values = [false, lastSync, offset, limit]
   } else {
-    // implement delta sync
+    //todo: implement delta sync on a separate table?
+    sql =
+      'SELECT * FROM `' +
+      table +
+      '` WHERE `_deleted` = ? AND _lastChangedAt > FROM_UNIXTIME(?/1000) ORDER BY `id` LIMIT ?, ?'
+    values = [false, lastSync, offset, limit]
   }
   console.log(`execute sql >`, JSON.stringify(sql, null, 2))
   console.log(`with values >`, JSON.stringify(values, null, 2))
@@ -108,32 +113,26 @@ async function _query({
   console.log(`rows >`, JSON.stringify(rows, null, 2))
 
   let nextToken = null
-  if (rows.length !== 0) {
-    nextToken = Buffer.from(JSON.stringify({ offset: rows.length })).toString(
-      'base64'
-    )
+  if (rows.length >= limit) {
+    nextToken = Buffer.from(
+      JSON.stringify({ offset: offset + rows.length })
+    ).toString('base64')
   }
   const items = rows.map((row) => clean(row))
 
   return { items, startedAt, nextToken }
 }
 
-async function _create({
-  args: {
-    input: { id = uuid(), ...input },
-  },
-  table,
-  connection,
-}) {
-  const item = { ...input, datastore_uuid: id }
+const _create = async ({ args: { input }, table, connection }) => {
+  const { id = uuidv4(), ...rest } = input
+  const item = { ...rest, datastore_uuid: id }
   const keys = Object.keys(item)
 
   let sql =
     'INSERT INTO `' +
     table +
     '` ' +
-    `(${keys.join(',')}) ` +
-    `VALUES(${keys.map((k) => '?').join(',')})`
+    `(${keys.join(',')}) VALUES(${keys.map((k) => '?').join(',')})`
   let values = keys.map((k) => item[k])
 
   console.log(`execute sql >`, JSON.stringify(sql, null, 2))
@@ -154,11 +153,12 @@ async function _create({
   return { data: clean(row) }
 }
 
-async function _update({ args: { input }, table, connection }) {
-  const { mysql_id: id, _version = 0, ...rest } = input
+const _update = async ({ args: { input }, table, connection }) => {
+  const { id: uuid, _version = 0, ...rest } = input
 
-  let sql = 'SELECT * FROM `' + table + '` WHERE `id` = ?'
-  let values = [id]
+  // let sql = 'SELECT * FROM `' + table + '` WHERE `id` = ?'
+  let sql = 'SELECT * FROM `' + table + '` WHERE `datastore_uuid` = ?'
+  let values = [uuid]
 
   console.log(`execute sql >`, JSON.stringify(sql, null, 2))
   console.log(`with values >`, JSON.stringify(values, null, 2))
@@ -191,7 +191,7 @@ async function _update({ args: { input }, table, connection }) {
     `${keys.map((k) => k + ' = ?').join(', ')} ` +
     'WHERE `id` = ?'
   values = keys.map((k) => rest[k])
-  values.push(id)
+  values.push(item.id)
 
   console.log(`execute sql >`, JSON.stringify(sql, null, 2))
   console.log(`with values >`, JSON.stringify(values, null, 2))
@@ -200,7 +200,7 @@ async function _update({ args: { input }, table, connection }) {
   console.log(`result >`, JSON.stringify(result, null, 2))
 
   sql = 'SELECT * FROM `' + table + '` WHERE `id` = ?'
-  values = [id]
+  values = [item.id]
 
   console.log(`execute sql >`, JSON.stringify(sql, null, 2))
   console.log(`with values >`, JSON.stringify(values, null, 2))
@@ -211,7 +211,7 @@ async function _update({ args: { input }, table, connection }) {
   return { data: clean(row) }
 }
 
-async function _delete({ args: { input }, table, connection }) {
+const _delete = async ({ args: { input }, table, connection }) => {
   const { id: uuid, _version } = input
   let sql = 'SELECT * FROM `' + table + '` WHERE `datastore_uuid` = ?'
   let values = [uuid]

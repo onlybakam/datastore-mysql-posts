@@ -1,59 +1,5 @@
 export const schema = {
-    "models": {},
-    "enums": {
-        "ModelAttributeTypes": {
-            "name": "ModelAttributeTypes",
-            "values": [
-                "binary",
-                "binarySet",
-                "bool",
-                "list",
-                "map",
-                "number",
-                "numberSet",
-                "string",
-                "stringSet",
-                "_null"
-            ]
-        },
-        "ModelSortDirection": {
-            "name": "ModelSortDirection",
-            "values": [
-                "ASC",
-                "DESC"
-            ]
-        }
-    },
-    "nonModels": {
-        "ModelPostConnection": {
-            "name": "ModelPostConnection",
-            "fields": {
-                "items": {
-                    "name": "items",
-                    "isArray": true,
-                    "type": {
-                        "nonModel": "Post"
-                    },
-                    "isRequired": false,
-                    "attributes": [],
-                    "isArrayNullable": true
-                },
-                "nextToken": {
-                    "name": "nextToken",
-                    "isArray": false,
-                    "type": "String",
-                    "isRequired": false,
-                    "attributes": []
-                },
-                "startedAt": {
-                    "name": "startedAt",
-                    "isArray": false,
-                    "type": "AWSTimestamp",
-                    "isRequired": false,
-                    "attributes": []
-                }
-            }
-        },
+    "models": {
         "Post": {
             "name": "Post",
             "fields": {
@@ -71,15 +17,6 @@ export const schema = {
                     "isRequired": true,
                     "attributes": []
                 },
-                "comments": {
-                    "name": "comments",
-                    "isArray": false,
-                    "type": {
-                        "nonModel": "ModelCommentConnection"
-                    },
-                    "isRequired": false,
-                    "attributes": []
-                },
                 "mysql_id": {
                     "name": "mysql_id",
                     "isArray": false,
@@ -87,71 +24,31 @@ export const schema = {
                     "isRequired": false,
                     "attributes": []
                 },
-                "_version": {
-                    "name": "_version",
-                    "isArray": false,
-                    "type": "Int",
-                    "isRequired": true,
-                    "attributes": []
-                },
-                "_deleted": {
-                    "name": "_deleted",
-                    "isArray": false,
-                    "type": "Boolean",
-                    "isRequired": false,
-                    "attributes": []
-                },
-                "_lastChangedAt": {
-                    "name": "_lastChangedAt",
-                    "isArray": false,
-                    "type": "AWSTimestamp",
-                    "isRequired": true,
-                    "attributes": []
-                },
-                "createdAt": {
-                    "name": "createdAt",
-                    "isArray": false,
-                    "type": "AWSDateTime",
-                    "isRequired": true,
-                    "attributes": []
-                },
-                "updatedAt": {
-                    "name": "updatedAt",
-                    "isArray": false,
-                    "type": "AWSDateTime",
-                    "isRequired": true,
-                    "attributes": []
-                }
-            }
-        },
-        "ModelCommentConnection": {
-            "name": "ModelCommentConnection",
-            "fields": {
-                "items": {
-                    "name": "items",
+                "comments": {
+                    "name": "comments",
                     "isArray": true,
                     "type": {
-                        "nonModel": "Comment"
+                        "model": "Comment"
                     },
                     "isRequired": false,
                     "attributes": [],
-                    "isArrayNullable": true
-                },
-                "nextToken": {
-                    "name": "nextToken",
-                    "isArray": false,
-                    "type": "String",
-                    "isRequired": false,
-                    "attributes": []
-                },
-                "startedAt": {
-                    "name": "startedAt",
-                    "isArray": false,
-                    "type": "AWSTimestamp",
-                    "isRequired": false,
-                    "attributes": []
+                    "isArrayNullable": true,
+                    "association": {
+                        "connectionType": "HAS_MANY",
+                        "associatedWith": "post"
+                    }
                 }
-            }
+            },
+            "syncable": true,
+            "pluralName": "Posts",
+            "attributes": [
+                {
+                    "type": "model",
+                    "properties": {
+                        "queries": {}
+                    }
+                }
+            ]
         },
         "Comment": {
             "name": "Comment",
@@ -163,29 +60,6 @@ export const schema = {
                     "isRequired": true,
                     "attributes": []
                 },
-                "postID": {
-                    "name": "postID",
-                    "isArray": false,
-                    "type": "ID",
-                    "isRequired": true,
-                    "attributes": []
-                },
-                "post": {
-                    "name": "post",
-                    "isArray": false,
-                    "type": {
-                        "nonModel": "Post"
-                    },
-                    "isRequired": false,
-                    "attributes": []
-                },
-                "content": {
-                    "name": "content",
-                    "isArray": false,
-                    "type": "String",
-                    "isRequired": true,
-                    "attributes": []
-                },
                 "mysql_id": {
                     "name": "mysql_id",
                     "isArray": false,
@@ -193,43 +67,49 @@ export const schema = {
                     "isRequired": false,
                     "attributes": []
                 },
-                "_version": {
-                    "name": "_version",
+                "post": {
+                    "name": "post",
                     "isArray": false,
-                    "type": "Int",
-                    "isRequired": true,
-                    "attributes": []
-                },
-                "_deleted": {
-                    "name": "_deleted",
-                    "isArray": false,
-                    "type": "Boolean",
+                    "type": {
+                        "model": "Post"
+                    },
                     "isRequired": false,
-                    "attributes": []
+                    "attributes": [],
+                    "association": {
+                        "connectionType": "BELONGS_TO",
+                        "targetName": "postID"
+                    }
                 },
-                "_lastChangedAt": {
-                    "name": "_lastChangedAt",
+                "content": {
+                    "name": "content",
                     "isArray": false,
-                    "type": "AWSTimestamp",
-                    "isRequired": true,
-                    "attributes": []
-                },
-                "createdAt": {
-                    "name": "createdAt",
-                    "isArray": false,
-                    "type": "AWSDateTime",
-                    "isRequired": true,
-                    "attributes": []
-                },
-                "updatedAt": {
-                    "name": "updatedAt",
-                    "isArray": false,
-                    "type": "AWSDateTime",
+                    "type": "String",
                     "isRequired": true,
                     "attributes": []
                 }
-            }
+            },
+            "syncable": true,
+            "pluralName": "Comments",
+            "attributes": [
+                {
+                    "type": "model",
+                    "properties": {
+                        "queries": {}
+                    }
+                },
+                {
+                    "type": "key",
+                    "properties": {
+                        "name": "byPost",
+                        "fields": [
+                            "postID"
+                        ]
+                    }
+                }
+            ]
         }
     },
-    "version": "5dc400c5669987833af9231e05532e70"
+    "enums": {},
+    "nonModels": {},
+    "version": "6dc2646f040ed6d9abf09cf364ecdb6a"
 };
