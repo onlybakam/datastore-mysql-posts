@@ -16,17 +16,6 @@ const DeltaSyncConfig = {
 }
 const MIN_TO_MILLI = 60 * 1000
 
-const operations = {
-  syncPosts: { fn: _query, table: 'Posts' },
-  syncComments: { fn: _query, table: 'Comments' },
-  createPost: { fn: _create, table: 'Posts' },
-  createComment: { fn: _create, table: 'Comments' },
-  updatePost: { fn: _update, table: 'Posts' },
-  updateComment: { fn: _update, table: 'Comments' },
-  deletePost: { fn: _delete, table: 'Posts' },
-  deleteComment: { fn: _delete, table: 'Comments' },
-}
-
 const init = async () => {
   let sm = await secretsManager
     .getSecretValue({ SecretId: SM_EXAMPLE_DATABASE_CREDENTIALS })
@@ -45,21 +34,6 @@ const init = async () => {
 }
 
 const q = (str) => '`' + str + '`'
-
-exports.handler = async (event) => {
-  console.log(`passed event >`, JSON.stringify(event, null, 2))
-
-  const { fieldName: operation, arguments: args } = event
-
-  const connection = await init()
-
-  if (operation in operations) {
-    const { fn, table } = operations[operation]
-    const result = await fn.apply(undefined, [{ table, args, connection }])
-    await connection.end()
-    return result
-  }
-}
 
 const clean = (row) => {
   const mysql_id = row.id
@@ -156,23 +130,34 @@ const _create = async ({ args: { input }, table, connection }) => {
 const _update = async ({ args: { input }, table, connection }) => {
   const { id: uuid, _version = 0, ...rest } = input
 
-  // let sql = 'SELECT * FROM `' + table + '` WHERE `id` = ?'
-  let sql = 'SELECT * FROM `' + table + '` WHERE `datastore_uuid` = ?'
-  let values = [uuid]
+  const keys = Object.keys(rest)
+
+  let sql =
+    'UPDATE `' +
+    table +
+    '` SET ' +
+    `${keys.map((k) => k + ' = ?').join(', ')} ` +
+    'WHERE `datastore_uuid` = ? AND `_version` >= ?'
+  let values = keys.map((k) => rest[k])
+  values.push(uuid)
+  values.push(_version)
 
   console.log(`execute sql >`, JSON.stringify(sql, null, 2))
   console.log(`with values >`, JSON.stringify(values, null, 2))
+
+  const [result] = await connection.query(sql, values)
+  console.log(`result >`, JSON.stringify(result, null, 2))
+
+  sql = 'SELECT * FROM `' + table + '` WHERE `datastore_uuid` = ?'
+  values = [uuid]
+
+  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
+  console.log(`with values >`, JSON.stringify(values, null, 2))
+
   const [[item]] = await connection.query(sql, values)
+  console.log(`row >`, JSON.stringify(item, null, 2))
 
-  console.log(`retrieved item >`, JSON.stringify(item, null, 2))
-
-  if (!item) {
-    return {
-      data: null,
-    }
-  }
-
-  if (_version < item._version) {
+  if (result.affectedRows !== 1) {
     console.log('version mismatch on item')
     return {
       data: clean(item),
@@ -181,17 +166,24 @@ const _update = async ({ args: { input }, table, connection }) => {
     }
   }
 
-  rest._version = item._version + 1
-  const keys = Object.keys(rest)
+  return { data: clean(item) }
+}
 
-  sql =
+const _delete = async ({ args: { input }, table, connection }) => {
+  const { id: uuid, _version = 0 } = input
+  const rest = { _version: '`_version` + 1', _deleted: true }
+
+  const keys = Object.keys(rest)
+  let values = keys.map((k) => rest[k])
+  values.push(uuid)
+  values.push(_version)
+
+  let sql =
     'UPDATE `' +
     table +
     '` SET ' +
     `${keys.map((k) => k + ' = ?').join(', ')} ` +
-    'WHERE `id` = ?'
-  values = keys.map((k) => rest[k])
-  values.push(item.id)
+    'WHERE `datastore_uuid` = ? AND `_version` >= ?'
 
   console.log(`execute sql >`, JSON.stringify(sql, null, 2))
   console.log(`with values >`, JSON.stringify(values, null, 2))
@@ -199,8 +191,8 @@ const _update = async ({ args: { input }, table, connection }) => {
   const [result] = await connection.query(sql, values)
   console.log(`result >`, JSON.stringify(result, null, 2))
 
-  sql = 'SELECT * FROM `' + table + '` WHERE `id` = ?'
-  values = [item.id]
+  sql = 'SELECT * FROM `' + table + '` WHERE `datastore_uuid` = ?'
+  values = [uuid]
 
   console.log(`execute sql >`, JSON.stringify(sql, null, 2))
   console.log(`with values >`, JSON.stringify(values, null, 2))
@@ -211,59 +203,28 @@ const _update = async ({ args: { input }, table, connection }) => {
   return { data: clean(row) }
 }
 
-const _delete = async ({ args: { input }, table, connection }) => {
-  const { id: uuid, _version } = input
-  let sql = 'SELECT * FROM `' + table + '` WHERE `datastore_uuid` = ?'
-  let values = [uuid]
+const operations = {
+  syncPosts: { fn: _query, table: 'Posts' },
+  syncComments: { fn: _query, table: 'Comments' },
+  createPost: { fn: _create, table: 'Posts' },
+  createComment: { fn: _create, table: 'Comments' },
+  updatePost: { fn: _update, table: 'Posts' },
+  updateComment: { fn: _update, table: 'Comments' },
+  deletePost: { fn: _delete, table: 'Posts' },
+  deleteComment: { fn: _delete, table: 'Comments' },
+}
 
-  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
-  console.log(`with values >`, JSON.stringify(values, null, 2))
-  const [[item]] = await connection.query(sql, values)
+exports.handler = async (event) => {
+  console.log(`passed event >`, JSON.stringify(event, null, 2))
 
-  console.log(`retrieved item >`, JSON.stringify(item, null, 2))
+  const { fieldName: operation, arguments: args } = event
 
-  if (!item) {
-    return {
-      data: null,
-    }
+  const connection = await init()
+
+  if (operation in operations) {
+    const { fn, table } = operations[operation]
+    const result = await fn.apply(undefined, [{ table, args, connection }])
+    await connection.end()
+    return result
   }
-
-  if (_version < item._version) {
-    console.log('version mismatch on item')
-    return {
-      data: clean(item),
-      errorMessage: 'Conflict',
-      errorType: 'ConflictUnhandled',
-    }
-  }
-
-  const id = item.id
-  const rest = { _version: item._version + 1, _deleted: true }
-  const keys = Object.keys(rest)
-
-  sql =
-    'UPDATE `' +
-    table +
-    '` SET ' +
-    `${keys.map((k) => k + ' = ?').join(', ')} ` +
-    'WHERE `id` = ?'
-  values = keys.map((k) => rest[k])
-  values.push(id)
-
-  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
-  console.log(`with values >`, JSON.stringify(values, null, 2))
-
-  const [result] = await connection.query(sql, values)
-  console.log(`result >`, JSON.stringify(result, null, 2))
-
-  sql = 'SELECT * FROM `' + table + '` WHERE `id` = ?'
-  values = [id]
-
-  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
-  console.log(`with values >`, JSON.stringify(values, null, 2))
-
-  const [[row]] = await connection.query(sql, values)
-  console.log(`row >`, JSON.stringify(row, null, 2))
-
-  return { data: clean(row) }
 }
