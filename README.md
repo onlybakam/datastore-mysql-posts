@@ -5,13 +5,13 @@
 Generate starting point schema and models from this base model
 
 ```graphql
-type Post @model {
+type Post @model(queries: {}) {
   id: ID!
   title: String!
   comments: [Comment] @connection(keyName: "byPost", fields: ["id"])
 }
 
-type Comment @model @key(name: "byPost", fields: ["postID"]) {
+type Comment @model(queries: {}) @key(name: "byPost", fields: ["postID"]) {
   id: ID!
   postID: ID!
   post: Post @connection(fields: ["postID"])
