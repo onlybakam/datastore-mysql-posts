@@ -86,7 +86,7 @@ amplify/backend/api/datastoremysqltodo/resolvers
 
 ## Lambda function
 
-see the definition
+see the [definition](./amplify/backend/function/datastoreLink/src/index.js)
 
 ## Table Definition
 
