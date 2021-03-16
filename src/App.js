@@ -73,9 +73,18 @@ const LI = ({ post }) => {
 
   useEffect(() => {
     if (!post) return
+    const subscription = DataStore.observe(
+      Comment,
+      (c) => c.post.id === post.id
+    ).subscribe((msg) => {
+      DataStore.query(Comment).then((cs) =>
+        setComments(cs.filter((c) => c.post.id === post.id))
+      )
+    })
     DataStore.query(Comment).then((cs) =>
-      setComments(cs.filter((c) => c.postID === post.id))
+      setComments(cs.filter((c) => c.post.id === post.id))
     )
+    return () => subscription && subscription.unsubscribe()
   }, [post])
 
   const handler = () => {
@@ -107,7 +116,7 @@ const LI = ({ post }) => {
 
   const addComment = async () => {
     const content = prompt('Add a Comment')
-    await DataStore.save(new Comment({ content, postID: post.id }))
+    await DataStore.save(new Comment({ content, post }))
   }
 
   useKeyPressEvent(predicate, handler)
@@ -207,12 +216,41 @@ const LI = ({ post }) => {
           </button>
         </div>
       </div>
-      <div className="flex items-center px-4 py-4 sm:px-6">
-        {comments.map((comment) => (
-          <span>{comment.content}</span>
-        ))}
-      </div>
+      {comments.length > 0 && (
+        <div className="flex items-center px-1 py-1 m-1 space-x-2 text-sm rounded sm:px-2">
+          {comments.map((comment) => (
+            <Badge Key={comment.id} comment={comment} />
+          ))}
+        </div>
+      )}
     </div>
+  )
+}
+
+const Badge = ({ comment }) => {
+  const doRemove = async () => {
+    await DataStore.delete(comment)
+  }
+
+  return (
+    <span className="inline-flex items-center py-0.5 pl-2 pr-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+      {comment.content}
+      <button
+        type="button"
+        onClick={doRemove}
+        className="flex-shrink-0 ml-0.5 h-4 w-4 rounded-full inline-flex items-center justify-center text-indigo-400 hover:bg-indigo-200 hover:text-indigo-500 focus:outline-none focus:bg-indigo-500 focus:text-white"
+      >
+        <span className="sr-only">Remove comment</span>
+        <svg
+          className="w-2 h-2"
+          stroke="currentColor"
+          fill="none"
+          viewBox="0 0 8 8"
+        >
+          <path strokeLinecap="round" strokeWidth="1.5" d="M1 1l6 6m0-6L1 7" />
+        </svg>
+      </button>
+    </span>
   )
 }
 

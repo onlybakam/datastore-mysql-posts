@@ -1,70 +1,136 @@
-# Getting Started with Create React App
+# Datastore with mysql table
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Schema
 
-## Available Scripts
+Generate starting point schema and models from this base model
 
-In the project directory, you can run:
+```graphql
+type Post @model {
+  id: ID!
+  title: String!
+  comments: [Comment] @connection(keyName: "byPost", fields: ["id"])
+}
 
-### `yarn start`
+type Comment @model @key(name: "byPost", fields: ["postID"]) {
+  id: ID!
+  postID: ID!
+  post: Post @connection(fields: ["postID"])
+  content: String!
+}
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+Then updated the schema with
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+```graphql
+type Query {
+  syncPosts(
+    filter: ModelPostFilterInput
+    limit: Int
+    nextToken: String
+    lastSync: AWSTimestamp
+  ): ModelPostConnection @function(name: "datastoreLink-${env}")
+  syncComments(
+    filter: ModelCommentFilterInput
+    limit: Int
+    nextToken: String
+    lastSync: AWSTimestamp
+  ): ModelCommentConnection @function(name: "datastoreLink-${env}")
+}
 
-### `yarn test`
+type Mutation {
+  createPost(input: CreatePostInput!, condition: ModelPostConditionInput): Post
+    @function(name: "datastoreLink-${env}")
+  updatePost(input: UpdatePostInput!, condition: ModelPostConditionInput): Post
+    @function(name: "datastoreLink-${env}")
+  deletePost(input: DeletePostInput!, condition: ModelPostConditionInput): Post
+    @function(name: "datastoreLink-${env}")
+  createComment(
+    input: CreateCommentInput!
+    condition: ModelCommentConditionInput
+  ): Comment @function(name: "datastoreLink-${env}")
+  updateComment(
+    input: UpdateCommentInput!
+    condition: ModelCommentConditionInput
+  ): Comment @function(name: "datastoreLink-${env}")
+  deleteComment(
+    input: DeleteCommentInput!
+    condition: ModelCommentConditionInput
+  ): Comment @function(name: "datastoreLink-${env}")
+}
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Note: The generated models are saved in `./src/models-base/'` for safe-keeping in case `./src/models/` gets overwritten.
 
-### `yarn build`
+Note: the generated resolvers for the Mutation fields needs to be updated as so
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```vtl
+#if($context.prev.result && $context.prev.result.errorMessage )
+    $utils.error($context.prev.result.errorMessage, $context.prev.result.errorType,
+    $context.prev.result.data)
+#else
+    $utils.toJson($context.prev.result.data)
+#end
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+The files are updated:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+amplify/backend/api/datastoremysqltodo/resolvers
+├── Mutation.createComment.res.vtl
+├── Mutation.createPost.res.vtl
+├── Mutation.deleteComment.res.vtl
+├── Mutation.deletePost.res.vtl
+├── Mutation.updateComment.res.vtl
+└── Mutation.updatePost.res.vtl
+```
 
-### `yarn eject`
+## Lambda function
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+see the definition
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Table Definition
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+```sql
+CREATE TABLE `Posts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `datastore_uuid` varchar(36) NOT NULL,
+  `title` varchar(50) NOT NULL,
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+  `_version` int(11) DEFAULT '1',
+  `_deleted` tinyint(1) DEFAULT '0',
+  `_lastChangedAt` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  `createdAt` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  `ttl` timestamp(3) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `datastore_uuid` (`datastore_uuid`)
+) 
+```
 
-## Learn More
+```sql
+CREATE TABLE `Comments` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `datastore_uuid` varchar(36) NOT NULL,
+  `postID` varchar(36) NOT NULL,
+  `content` text NOT NULL,
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+  `_version` int(11) DEFAULT '1',
+  `_deleted` tinyint(1) DEFAULT '0',
+  `_lastChangedAt` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  `createdAt` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  `ttl` timestamp(3) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `postID` (`postID`),
+  CONSTRAINT `post_comments_ibfk_2` FOREIGN KEY (`postID`) REFERENCES `Posts` (`datastore_uuid`)
+)
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Delta Sync table
 
-### Code Splitting
+TODO! Not implemented yet.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Questions
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `yarn build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+* do we need a delta sync table in a SQL environment?
+* primary key strategy? I'm assuming existing tables are used. datastore should use another field to store the "datastore id". Here we used `datastore_uuid`. Make that an index as well to improve performance?
