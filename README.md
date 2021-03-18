@@ -84,11 +84,15 @@ amplify/backend/api/datastoremysqltodo/resolvers
 └── Mutation.updatePost.res.vtl
 ```
 
+TODO: for simplicity and uniformity, change query response to this format as well
+
 ## Lambda function
 
 see the [definition](./amplify/backend/function/datastoreLink/src/index.js)
 
-## Table Definition
+## SQL
+
+### Table Definition
 
 ```sql
 CREATE TABLE `Posts` (
@@ -121,9 +125,33 @@ CREATE TABLE `Comments` (
   `updatedAt` timestamp(3) NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `ttl` timestamp(3) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
+  KEY `datastore_uuid` (`datastore_uuid`)
   KEY `postID` (`postID`),
-  CONSTRAINT `post_comments_ibfk_2` FOREIGN KEY (`postID`) REFERENCES `Posts` (`datastore_uuid`)
+  CONSTRAINT `post_comments_ibfk_1` FOREIGN KEY (`postID`) REFERENCES `Posts` (`datastore_uuid`)
 )
+```
+
+### Events
+
+```sql
+DELIMITER |
+
+CREATE EVENT `process_deleted_items` ON SCHEDULE EVERY 1 DAY COMMENT 'purge deleted items' DO 
+BEGIN
+DELETE FROM
+  Comments
+WHERE
+  _deleted = TRUE
+  AND ttl <= CURRENT_TIMESTAMP(3);
+
+DELETE FROM
+  Posts
+WHERE
+  _deleted = TRUE
+  AND ttl <= CURRENT_TIMESTAMP(3);
+END |
+
+DELIMITER;
 ```
 
 ## Delta Sync table

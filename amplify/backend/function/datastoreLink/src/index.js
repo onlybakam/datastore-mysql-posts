@@ -12,7 +12,7 @@ const { SM_EXAMPLE_DATABASE_CREDENTIALS, URL_RDS_PROXY } = process.env
 
 const DeltaSyncConfig = {
   DeltaSyncTableTTL: 30, // 30 minutes
-  BaseTableTTL: 43200, // 30 days
+  BaseTableTTL: 43200, // 30 days in minutes
 }
 const MIN_TO_MILLI = 60 * 1000
 
