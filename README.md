@@ -112,6 +112,22 @@ CREATE TABLE `Posts` (
 ```
 
 ```sql
+CREATE TABLE `DeltaSyncPosts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `datastore_uuid` varchar(36) NOT NULL,
+  `title` varchar(50) NOT NULL,
+  `_version` int(11) DEFAULT '1',
+  `_deleted` tinyint(1) DEFAULT '0',
+  `_lastChangedAt` timestamp(3) NOT NULL,
+  `createdAt` timestamp(3) NOT NULL,
+  `updatedAt` timestamp(3) NOT NULL,
+  `ttl` timestamp(3) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_version` (`datastore_uuid`,`_lastChangedAt`,`_version`)
+)
+```
+
+```sql
 CREATE TABLE `Comments` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `datastore_uuid` varchar(36) NOT NULL,

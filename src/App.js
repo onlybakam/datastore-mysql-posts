@@ -219,7 +219,7 @@ const LI = ({ post }) => {
       {comments.length > 0 && (
         <div className="flex items-center px-1 py-1 m-1 space-x-2 text-sm rounded sm:px-2">
           {comments.map((comment) => (
-            <Badge Key={comment.id} comment={comment} />
+            <Badge key={comment.id} comment={comment} />
           ))}
         </div>
       )}
