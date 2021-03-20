@@ -3,8 +3,30 @@ import config from './aws-exports'
 import Amplify, { DataStore } from 'aws-amplify'
 import { Post, Comment } from './models'
 import { useKeyPressEvent, useUpdateEffect } from 'react-use'
+import { DISCARD } from '@aws-amplify/datastore'
 
 Amplify.configure(config)
+
+DataStore.configure({
+  errorHandler: (error) => {
+    console.warn('Unrecoverable error', { error })
+  },
+  conflictHandler: async (data) => {
+    // Example conflict handler
+
+    console.log(`conflict on data >`, JSON.stringify(data, null, 2))
+    const modelConstructor = data.modelConstructor
+    if (modelConstructor === Post) {
+      const remoteModel = data.remoteModel
+      const localModel = data.localModel
+      const newModel = modelConstructor.copyOf(remoteModel, (d) => {
+        d.title = localModel.title + ' I WIN!'
+      })
+      return newModel
+    }
+    return DISCARD
+  },
+})
 
 function App() {
   const [posts, setPosts] = useState([])

@@ -35,9 +35,8 @@ const initConn = (sm) => {
   return mysql.createConnection(connectionConfig)
 }
 
-const tableName = (belongsTo) => {
-  return belongsTo[0].toUpperCase() + belongsTo.slice(1) + 's'
-}
+const tableName = (belongsTo) =>
+  belongsTo[0].toUpperCase() + belongsTo.slice(1) + 's'
 
 const deltaSyncTable = (baseTable) => DELTA_SYNC_PREFIX + baseTable
 
@@ -60,7 +59,13 @@ const toModel = (row, belongsTo) => {
   }
 }
 
-const selectRow = ({ table, isUpdate, lookupId, belongsTo }) => {
+const selectRow = async ({
+  table,
+  isUpdate,
+  lookupId,
+  belongsTo,
+  connection,
+}) => {
   let sql = null
   const lookupField = isUpdate ? 'datastore_uuid' : 'id'
   if (belongsTo) {
@@ -71,13 +76,19 @@ const selectRow = ({ table, isUpdate, lookupId, belongsTo }) => {
     INNER JOIN ${parentTable} ON ${table}.${belongsTo}ID = ${parentTable}.datastore_uuid
     WHERE ${table}.${lookupField} = ?`
   } else {
-    sql = `SELECT * FROM ${table} WHERE id = ?`
+    sql = `SELECT * FROM ${table} WHERE ${lookupField} = ?`
   }
   const values = [lookupId]
-  return { sql, values }
+
+  // RETRIEVE the row and potential parent
+  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
+  console.log(`with values >`, JSON.stringify(values, null, 2))
+  const [[row]] = await connection.query(sql, values)
+  console.log(`row >`, JSON.stringify(row, null, 2))
+  return row
 }
 
-const writeToDeltaSyncTable = ({ row, table }) => {
+const writeToDeltaSyncTable = async ({ row, table, connection }) => {
   const ds = Object.assign({}, row)
   delete ds.id
   delete ds.ttl
@@ -92,7 +103,12 @@ const writeToDeltaSyncTable = ({ row, table }) => {
     .join(',')}, TIMESTAMPADD(MINUTE, ?, CURRENT_TIMESTAMP(3)))`
   const values = keys.map((k) => ds[k])
   values.push(DeltaSyncConfig.DeltaSyncTableTTL)
-  return { sql, values }
+
+  console.log(`ds - execute sql >`, JSON.stringify(sql, null, 2))
+  console.log(`ds - with values >`, JSON.stringify(values, null, 2))
+  const [result] = await connection.query(sql, values)
+  console.log(`ds - result >`, JSON.stringify(result, null, 2))
+  return result
 }
 
 const _query = async ({
@@ -179,32 +195,23 @@ const _create = async ({ args: { input }, table, connection, belongsTo }) => {
   const [result] = await connection.query(insertSql, insertValues)
   console.log(`result >`, JSON.stringify(result, null, 2))
 
-  const { sql, values } = selectRow({
+  const row = await selectRow({
     table,
     isUpdate: false,
     lookupId: result.insertId,
     belongsTo,
+    connection,
   })
-
-  // RETRIEVE the row and potential parent
-  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
-  console.log(`with values >`, JSON.stringify(values, null, 2))
-  const [[row]] = await connection.query(sql, values)
-  console.log(`row >`, JSON.stringify(row, null, 2))
 
   // UPDATE the DeltaSync table if row was created
   if (row && row.id) {
-    const { sql, values } = writeToDeltaSyncTable({ row, table })
-    console.log(`ds - execute sql >`, JSON.stringify(sql, null, 2))
-    console.log(`ds - with values >`, JSON.stringify(values, null, 2))
-    const [result] = await connection.query(sql, values)
-    console.log(`ds - result >`, JSON.stringify(result, null, 2))
+    await writeToDeltaSyncTable({ row, table, connection })
   }
 
   return { data: toModel(row, belongsTo) }
 }
 
-const _doUpdate = async ({
+const _doUpdateTransactionWithRowLock = async ({
   sql,
   values,
   uuid,
@@ -227,19 +234,13 @@ const _doUpdate = async ({
   const [result] = await connection.query(sql, values)
   console.log(`result >`, JSON.stringify(result, null, 2))
 
-  if (belongsTo) {
-    const parentTable = tableName(belongsTo)
-    sql = `SELECT ${table}.*, ${parentTable}.datastore_uuid as parentUUID, ${parentTable}._deleted as parentDeleted from ${table}, ${parentTable} WHERE ${table}.datastore_uuid = ? AND ${table}.${belongsTo}ID = ${parentTable}.datastore_uuid`
-  } else {
-    sql = `SELECT * FROM ${table} WHERE datastore_uuid = ?`
-  }
-  values = [uuid]
-
-  // RE-READ the row and potential parent
-  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
-  console.log(`with values >`, JSON.stringify(values, null, 2))
-  const [[row]] = await connection.query(sql, values)
-  console.log(`row >`, JSON.stringify(row, null, 2))
+  const row = await selectRow({
+    table,
+    isUpdate: true,
+    lookupId: uuid,
+    belongsTo,
+    connection,
+  })
 
   // FINALLY COMMIT
   const commit = await connection.query('COMMIT;')
@@ -249,7 +250,7 @@ const _doUpdate = async ({
     // INITIAL operation did not update a row, return unhandled mismatch
     console.log('version mismatch on item')
     return {
-      data: toModel(row),
+      data: toModel(row, belongsTo),
       errorMessage: 'Conflict',
       errorType: 'ConflictUnhandled',
     }
@@ -257,147 +258,49 @@ const _doUpdate = async ({
 
   // WRITE record to the DeltaSync table if row was created
   if (row && row.id) {
-    const { sql, values } = writeToDeltaSyncTable({ row, table })
-    console.log(`ds - execute sql >`, JSON.stringify(sql, null, 2))
-    console.log(`ds - with values >`, JSON.stringify(values, null, 2))
-    const [result] = await connection.query(sql, values)
-    console.log(`ds - result >`, JSON.stringify(result, null, 2))
+    await writeToDeltaSyncTable({ row, table, connection })
   }
 
-  return { data: toModel(row) }
+  return { data: toModel(row, belongsTo) }
 }
 
 const _update = async ({ args: { input }, table, connection, belongsTo }) => {
-  // START TRANSACTION to lock the row
-  const transaction = await connection.query(`START TRANSACTION`)
-  console.log(`start transaction >`, transaction)
-
   const { id: uuid, _version = 0, ...item } = input
+  delete item.mysql_id // do not track changes to this field!
   const keys = Object.keys(item)
 
-  // TRY to lock the row for update
-  let sql = `SELECT * FROM ${table} WHERE datastore_uuid=? LOCK IN SHARE MODE;`
-  let values = [uuid]
-  const [[existing]] = await connection.query(sql, values)
-  console.log(`existing with lock >`, JSON.stringify(existing, null, 2))
-
-  sql = `UPDATE ${table} SET ${keys
+  const sql = `UPDATE ${table} SET ${keys
     .map((k) => k + ' = ?')
-    .join(
-      ', '
-    )}, _version=_version+1 WHERE datastore_uuid = ? AND _version >= ?`
-  values = keys.map((k) => item[k])
+    .join(', ')}, _version=_version+1 WHERE datastore_uuid = ? AND _version = ?`
+  const values = keys.map((k) => item[k])
   values.push(uuid)
   values.push(_version)
 
-  // UPDATE the row
-  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
-  console.log(`with values >`, JSON.stringify(values, null, 2))
-  const [result] = await connection.query(sql, values)
-  console.log(`result >`, JSON.stringify(result, null, 2))
-
-  if (belongsTo) {
-    const parentTable = tableName(belongsTo)
-    sql = `SELECT ${table}.*, ${parentTable}.datastore_uuid as parentUUID, ${parentTable}._deleted as parentDeleted from ${table}, ${parentTable} WHERE ${table}.datastore_uuid = ? AND ${table}.${belongsTo}ID = ${parentTable}.datastore_uuid`
-  } else {
-    sql = `SELECT * FROM ${table} WHERE datastore_uuid = ?`
-  }
-  values = [uuid]
-
-  // RE-READ the row and potential parent
-  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
-  console.log(`with values >`, JSON.stringify(values, null, 2))
-  const [[row]] = await connection.query(sql, values)
-  console.log(`row >`, JSON.stringify(row, null, 2))
-
-  // FINALLY COMMIT
-  const commit = await connection.query('COMMIT;')
-  console.log('commit', commit)
-
-  if (result.affectedRows !== 1) {
-    // INITIAL operation did not update a row, return unhandled mismatch
-    console.log('version mismatch on item')
-    return {
-      data: toModel(row),
-      errorMessage: 'Conflict',
-      errorType: 'ConflictUnhandled',
-    }
-  }
-
-  // WRITE record to the DeltaSync table if row was created
-  if (row && row.id) {
-    const { sql, values } = writeToDeltaSyncTable({ row, table })
-    console.log(`ds - execute sql >`, JSON.stringify(sql, null, 2))
-    console.log(`ds - with values >`, JSON.stringify(values, null, 2))
-    const [result] = await connection.query(sql, values)
-    console.log(`ds - result >`, JSON.stringify(result, null, 2))
-  }
-
-  return { data: toModel(row) }
+  return await _doUpdateTransactionWithRowLock({
+    sql,
+    values,
+    uuid,
+    table,
+    connection,
+    belongsTo,
+  })
 }
 
 const _delete = async ({ args: { input }, table, connection, belongsTo }) => {
-  // START TRANSACTION to lock the row
-  const transaction = await connection.query(`START TRANSACTION`)
-  console.log(`start transaction >`, transaction)
-
   const { id: uuid, _version = 0 } = input
-
-  // TRY to lock the row for update
-  let sql = `SELECT * FROM ${table} WHERE datastore_uuid=? LOCK IN SHARE MODE;`
-  let values = [uuid]
-  const [[existing]] = await connection.query(sql, values)
-  console.log(`existing with lock >`, JSON.stringify(existing, null, 2))
-
-  sql = `
+  const sql = `
   UPDATE ${table} SET _deleted=true, _version=_version+1, ttl = TIMESTAMPADD(MINUTE, ?, CURRENT_TIMESTAMP(3))
-  WHERE datastore_uuid = ? AND _version >= ?`
-  values = [DeltaSyncConfig.BaseTableTTL, uuid, _version]
+  WHERE datastore_uuid = ? AND _version = ?`
+  const values = [DeltaSyncConfig.BaseTableTTL, uuid, _version]
 
-  // UPDATE the row, marking it as deleted
-  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
-  console.log(`with values >`, JSON.stringify(values, null, 2))
-  const [result] = await connection.query(sql, values)
-  console.log(`result >`, JSON.stringify(result, null, 2))
-
-  if (belongsTo) {
-    const parentTable = tableName(belongsTo)
-    sql = `SELECT ${table}.*, ${parentTable}.datastore_uuid as parentUUID, ${parentTable}._deleted as parentDeleted from ${table}, ${parentTable} WHERE ${table}.datastore_uuid = ? AND ${table}.${belongsTo}ID = ${parentTable}.datastore_uuid`
-  } else {
-    sql = `SELECT * FROM ${table} WHERE datastore_uuid = ?`
-  }
-  values = [uuid]
-
-  // RE-READ the row and potential parent
-  console.log(`execute sql >`, JSON.stringify(sql, null, 2))
-  console.log(`with values >`, JSON.stringify(values, null, 2))
-  const [[row]] = await connection.query(sql, values)
-  console.log(`row >`, JSON.stringify(row, null, 2))
-
-  // FINALLY COMMIT
-  const commit = await connection.query('COMMIT;')
-  console.log('commit', commit)
-
-  if (result.affectedRows !== 1) {
-    // INITIAL operation did not update a row, return unhandled mismatch
-    console.log('version mismatch on item')
-    return {
-      data: toModel(row),
-      errorMessage: 'Conflict',
-      errorType: 'ConflictUnhandled',
-    }
-  }
-
-  // WRITE record to the DeltaSync table if row was created
-  if (row && row.id) {
-    const { sql, values } = writeToDeltaSyncTable({ row, table })
-    console.log(`ds - execute sql >`, JSON.stringify(sql, null, 2))
-    console.log(`ds - with values >`, JSON.stringify(values, null, 2))
-    const [result] = await connection.query(sql, values)
-    console.log(`ds - result >`, JSON.stringify(result, null, 2))
-  }
-
-  return { data: toModel(row) }
+  return await _doUpdateTransactionWithRowLock({
+    sql,
+    values,
+    uuid,
+    table,
+    connection,
+    belongsTo,
+  })
 }
 
 const operations = {

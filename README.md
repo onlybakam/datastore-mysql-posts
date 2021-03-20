@@ -147,6 +147,26 @@ CREATE TABLE `Comments` (
 )
 ```
 
+```sql
+CREATE TABLE `DeltaSyncComments` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `datastore_uuid` varchar(36) NOT NULL,
+  `postID` varchar(36) NOT NULL,
+  `content` text NOT NULL,
+
+  `_version` int(11) NOT NULL
+  `_deleted` tinyint(1) NOT NULL,
+  `_lastChangedAt` timestamp(3) NOT NULL,
+  `createdAt` timestamp(3) NOT NULL,
+  `updatedAt` timestamp(3) NOT NULL,
+  `ttl` timestamp(3) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_version` (`datastore_uuid`,`_lastChangedAt`,`_version`),
+  KEY `postID` (`postID`),
+  CONSTRAINT `post_comments_ibfk_a` FOREIGN KEY (`postID`) REFERENCES `Posts` (`datastore_uuid`)
+)
+```
+
 ### Events
 
 ```sql
@@ -161,6 +181,16 @@ WHERE
   AND ttl <= CURRENT_TIMESTAMP(3);
 
 DELETE FROM
+  DeltaSyncPosts
+WHERE
+  ttl <= CURRENT_TIMESTAMP(3);
+
+DELETE FROM
+  DeltaSyncComments
+WHERE
+  ttl <= CURRENT_TIMESTAMP(3);
+
+DELETE FROM
   Posts
 WHERE
   _deleted = TRUE
@@ -172,9 +202,10 @@ DELIMITER;
 
 ## Delta Sync table
 
-TODO! Not implemented yet.
+- [x] TODO! Not implemented yet.
+  - done
 
 Questions
 
-* do we need a delta sync table in a SQL environment?
-* primary key strategy? I'm assuming existing tables are used. datastore should use another field to store the "datastore id". Here we used `datastore_uuid`. Make that an index as well to improve performance?
+- [x] do we need a delta sync table in a SQL environment?
+- [] primary key strategy? I'm assuming existing tables are used. datastore should use another field to store the "datastore id". Here we used `datastore_uuid`. Make that an index as well to improve performance?
