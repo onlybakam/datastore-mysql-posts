@@ -81,10 +81,12 @@ amplify/backend/api/datastoremysqltodo/resolvers
 ├── Mutation.deleteComment.res.vtl
 ├── Mutation.deletePost.res.vtl
 ├── Mutation.updateComment.res.vtl
-└── Mutation.updatePost.res.vtl
+├── Mutation.updatePost.res.vtl
+├── Query.syncComments.res.vtl
+└── Query.syncPosts.res.vtl
 ```
 
-TODO: for simplicity and uniformity, change query response to this format as well
+- [x] TODO: for simplicity and uniformity, change query response to this format as well
 
 ## Lambda function
 
@@ -205,7 +207,8 @@ DELIMITER;
 - [x] TODO! Not implemented yet.
   - done
 
-Questions
+Other things
 
 - [x] do we need a delta sync table in a SQL environment?
-- [] primary key strategy? I'm assuming existing tables are used. datastore should use another field to store the "datastore id". Here we used `datastore_uuid`. Make that an index as well to improve performance?
+- [ ] primary key strategy? I'm assuming existing tables are used. datastore should use another field to store the "datastore id". Here we used `datastore_uuid`. Make that an index as well to improve performance?
+- [ ] probably should send `mysql_id` to appsync for logging but not real point in exposing it to client. values also changes on a record if from delta table or base table.
